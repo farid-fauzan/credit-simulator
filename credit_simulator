@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+JAR="$DIR/target/credit-simulator.jar"
+
+if [ ! -f "$JAR" ]; then
+  echo "credit-simulator.jar not found. Build it first with: mvn clean package" >&2
+  exit 1
+fi
+
+exec java -jar "$JAR" "$@"

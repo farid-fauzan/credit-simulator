@@ -1,0 +1,6 @@
+jenisKendaraan=Mobil
+kondisiKendaraan=Baru
+tahunKendaraan=2025
+jumlahPinjaman=1000000000
+tenor=6
+jumlahDP=500000000
