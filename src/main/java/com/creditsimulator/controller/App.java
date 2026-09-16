@@ -8,6 +8,7 @@ import com.creditsimulator.factory.VehicleFactory;
 import com.creditsimulator.io.ConsoleInputReader;
 import com.creditsimulator.io.FileInputReader;
 import com.creditsimulator.io.JsonHttpClient;
+import com.creditsimulator.io.SheetRepository;
 import com.creditsimulator.io.SimpleJsonParser;
 import com.creditsimulator.service.InterestRateService;
 import com.creditsimulator.service.LoanCalculatorService;
@@ -19,6 +20,7 @@ import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.math.BigDecimal;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Map;
 
 public class App {
@@ -30,6 +32,9 @@ public class App {
     private final LoanCalculatorService loanCalculatorService =
             new LoanCalculatorService(new InterestRateService());
     private final JsonHttpClient jsonHttpClient = new JsonHttpClient();
+    private final SheetRepository sheetRepository = new SheetRepository();
+
+    private LoanRequest lastRequest;
 
     public static void main(String[] args) {
         new App().run(args);
@@ -64,7 +69,13 @@ public class App {
             if (line == null) {
                 break;
             }
-            String command = line.trim().toLowerCase();
+            String trimmedLine = line.trim();
+            if (trimmedLine.isEmpty()) {
+                continue;
+            }
+            String[] parts = trimmedLine.split("\\s+", 2);
+            String command = parts[0].toLowerCase();
+            String argument = parts.length > 1 ? parts[1].trim() : null;
 
             switch (command) {
                 case "show":
@@ -76,11 +87,19 @@ public class App {
                 case "load":
                     handleLoad();
                     break;
+                case "save":
+                    handleSave(argument);
+                    break;
+                case "sheets":
+                    handleListSheets();
+                    break;
+                case "switch":
+                case "sheet":
+                    handleSwitch(argument);
+                    break;
                 case "exit":
                 case "quit":
                     return;
-                case "":
-                    break;
                 default:
                     System.out.println("Command tidak dikenal: '" + command + "'. Ketik 'show' untuk daftar command.");
             }
@@ -94,10 +113,13 @@ public class App {
 
     private void printCommands() {
         System.out.println("Command yang tersedia:");
-        System.out.println("  show  - tampilkan daftar command");
-        System.out.println("  new   - input data kendaraan baru & hitung cicilan");
-        System.out.println("  load  - ambil data dari web service & hitung cicilan");
-        System.out.println("  exit  - keluar dari aplikasi");
+        System.out.println("  show           - tampilkan daftar command");
+        System.out.println("  new            - input data kendaraan baru & hitung cicilan");
+        System.out.println("  load           - ambil data dari web service & hitung cicilan");
+        System.out.println("  save <nama>    - simpan hasil kalkulasi terakhir sebagai sheet <nama>");
+        System.out.println("  sheets         - tampilkan daftar sheet yang tersimpan");
+        System.out.println("  switch <nama>  - pindah & tampilkan ulang hasil kalkulasi sheet <nama>");
+        System.out.println("  exit           - keluar dari aplikasi");
     }
 
     private void handleNew(BufferedReader reader) {
@@ -124,6 +146,53 @@ public class App {
         }
     }
 
+    private void handleSave(String name) {
+        if (lastRequest == null) {
+            System.out.println("Belum ada hasil kalkulasi untuk disimpan. Jalankan 'new' atau 'load' dulu.");
+            return;
+        }
+        if (name == null || name.isBlank()) {
+            System.out.println("Gunakan format: save <nama-sheet>");
+            return;
+        }
+        try {
+            sheetRepository.save(name, lastRequest);
+            System.out.println("Tersimpan sebagai sheet '" + name + "'.");
+        } catch (Exception e) {
+            System.out.println("Gagal menyimpan sheet: " + e.getMessage());
+        }
+    }
+
+    private void handleListSheets() {
+        try {
+            List<String> names = sheetRepository.list();
+            if (names.isEmpty()) {
+                System.out.println("Belum ada sheet yang tersimpan. Gunakan 'save <nama>' setelah 'new'/'load'.");
+            } else {
+                System.out.println("Sheet tersimpan:");
+                names.forEach(n -> System.out.println("  - " + n));
+            }
+        } catch (Exception e) {
+            System.out.println("Gagal membaca daftar sheet: " + e.getMessage());
+        }
+    }
+
+    private void handleSwitch(String name) {
+        if (name == null || name.isBlank()) {
+            System.out.println("Gunakan format: switch <nama-sheet>");
+            return;
+        }
+        try {
+            LoanRequest request = sheetRepository.load(name);
+            processAndPrint(request);
+            System.out.println("(beralih ke sheet '" + name + "')");
+        } catch (ValidationException e) {
+            System.out.println("Sheet '" + name + "' tidak memenuhi aturan: " + e.getMessage());
+        } catch (Exception e) {
+            System.out.println("Gagal switch ke sheet: " + e.getMessage());
+        }
+    }
+
     private LoanRequest mapJsonToLoanRequest(String json) {
         Map<String, String> fields = SimpleJsonParser.parseFlatObject(json);
         return new LoanRequest(
@@ -139,6 +208,7 @@ public class App {
     private void processAndPrint(LoanRequest request) {
         loanValidator.validate(request);
         CalculationResult result = loanCalculatorService.calculate(request);
+        lastRequest = request;
         printResult(request, result);
     }
 

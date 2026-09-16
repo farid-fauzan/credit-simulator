@@ -50,16 +50,24 @@ Setelah `./credit_simulator` dijalankan tanpa argumen, tersedia command:
 | `show` | Menampilkan semua command yang tersedia |
 | `new`  | Input data kendaraan secara manual, lalu hitung & tampilkan cicilan |
 | `load` | Ambil data dari web service (`GET run.mocky.io/...`), otomatis hitung & tampilkan hasilnya |
+| `save <nama>` | Simpan hasil kalkulasi terakhir (`new`/`load`/`switch`) sebagai sebuah "sheet" bernama `<nama>` |
+| `sheets` | Menampilkan daftar sheet yang sudah tersimpan |
+| `switch <nama>` (alias `sheet <nama>`) | Beralih ke sheet `<nama>` — input yang tersimpan dihitung ulang & hasilnya langsung ditampilkan |
 | `exit` | Keluar dari aplikasi |
+
+Sebuah "sheet" adalah satu skenario perhitungan (mirip tab di Excel) yang bisa disimpan lalu dipanggil kembali tanpa perlu input ulang. Disimpan sebagai file `<nama>.sheet.txt` (format sama dengan `file_inputs.txt`) di folder `sheets/` — dibuat otomatis di direktori kerja saat pertama kali `save` dipakai, dan tidak di-commit ke repo (lihat `.gitignore`).
 
 Contoh sesi:
 ```
 === Credit Simulator ===
 Command yang tersedia:
-  show  - tampilkan daftar command
-  new   - input data kendaraan baru & hitung cicilan
-  load  - ambil data dari web service & hitung cicilan
-  exit  - keluar dari aplikasi
+  show           - tampilkan daftar command
+  new            - input data kendaraan baru & hitung cicilan
+  load           - ambil data dari web service & hitung cicilan
+  save <nama>    - simpan hasil kalkulasi terakhir sebagai sheet <nama>
+  sheets         - tampilkan daftar sheet yang tersimpan
+  switch <nama>  - pindah & tampilkan ulang hasil kalkulasi sheet <nama>
+  exit           - keluar dari aplikasi
 
 > new
 Jenis Kendaraan (Motor/Mobil): Mobil
@@ -73,6 +81,18 @@ Jenis Kendaraan   : Mobil
 Kondisi           : BARU
 ...
 Jumlah Cicilan Perbulan (tahun pertama): Rp. 7,500,000.00
+
+> save mobil-baru-2025
+Tersimpan sebagai sheet 'mobil-baru-2025'.
+
+> sheets
+Sheet tersimpan:
+  - mobil-baru-2025
+
+> switch mobil-baru-2025
+Jenis Kendaraan   : Mobil
+...
+(beralih ke sheet 'mobil-baru-2025')
 ```
 
 ## Input & Business Rules
@@ -114,6 +134,7 @@ Test yang tersedia:
 - `InterestRateServiceTest` — memverifikasi kenaikan suku bunga tahunan cocok dengan sample di soal (8% → 8,1% → 8,6%)
 - `LoanCalculatorServiceTest` — memverifikasi hasil kalkulasi cicilan persis sama dengan angka referensi di `Rumus.xlsx`
 - `LoanValidatorTest` — memverifikasi seluruh business rule (tenor, DP minimum, tahun kendaraan, batas pinjaman)
+- `SheetRepositoryTest` — memverifikasi save/list/switch sheet, termasuk validasi nama sheet & sheet yang tidak ditemukan
 
 ## Struktur Project
 

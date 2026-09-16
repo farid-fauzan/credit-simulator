@@ -1,6 +1,7 @@
 target/
 .idea/
+.git/
+sheets/
 *.class
 *.iml
 *.log
-sheets/
